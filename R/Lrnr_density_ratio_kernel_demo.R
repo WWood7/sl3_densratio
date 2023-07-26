@@ -1,6 +1,3 @@
-# load the sl3 package
-library(sl3)
-library(R6)
 ##' Template of a \code{sl3} Learner.
 ##'
 ##' This learner uses \code{\link[densratio]{densratio}} from \code{densratio} to kernel-based density ratio estimation algorithms.
@@ -91,7 +88,7 @@ Lrnr_densratio_kernel <- R6Class(
             
             # call a function that fits your algorithm
             # with the argument list you constructed
-            fit_object <- sl3::call_with_args(densratio:densratio, args)
+            fit_object <- call_with_args(densratio::densratio, args)
             
             # return the fit object, which will be stored
             # in a learner object and returned from the call
