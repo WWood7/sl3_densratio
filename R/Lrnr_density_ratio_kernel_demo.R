@@ -72,9 +72,13 @@ Lrnr_densratio_kernel <- R6Class(
             
             # add task data to the argument list
             # split the data into 2 sets, each represent a sample from one distribution
-            whole_data <- as.matrix(task$data)
-            args$x1 <- whole_data[whole_data[, 'indicator'] == 1, ]
-            args$x2 <- whole_data[whole_data[, 'indicator'] == 2, ]
+            whole_data <- task$data
+            data_x1 <- whole_data[whole_data$indicator == 1, ]
+            data_x2 <- whole_data[whole_data$indicator == 2, ]
+            data_x1$indicator <- NULL
+            data_x2$indicator <- NULL
+            args$x1 <- as.matrix(data_x1)
+            args$x2 <- as.matrix(data_x2)
             
             # only add arguments on weights and offset
             # if those were specified when the task was generated
@@ -97,12 +101,12 @@ Lrnr_densratio_kernel <- R6Class(
         },
         
         # .predict takes a task and returns predictions from that task
-        .predict = function(task = NULL) {
-            self$training_task
-            self$training_outcome_type
-            self$fit_object
-            
-            predictions <- predict(self$fit_object$compute_density_ratio, task$X)
+        .predict = function(task) {
+            pred_data <- task$data
+            pred_data <- pred_data[pred_data$indicator == 1, ]
+            pred_data$indicator <- NULL
+            pred_data <- as.matrix(pred_data)
+            predictions <- self$fit_object$compute_density_ratio(pred_data)
             return(predictions)
         }
     )
