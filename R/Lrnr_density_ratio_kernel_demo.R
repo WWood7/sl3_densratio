@@ -103,7 +103,7 @@ Lrnr_densratio_kernel <- R6Class(
         # .predict takes a task and returns predictions from that task
         .predict = function(task) {
             pred_data <- task$data
-            pred_data <- pred_data[pred_data$indicator == 1, ]
+            pred_data <- pred_data[pred_data$indicator == 2, ]
             pred_data$indicator <- NULL
             pred_data <- as.matrix(pred_data)
             predictions <- self$fit_object$compute_density_ratio(pred_data)
