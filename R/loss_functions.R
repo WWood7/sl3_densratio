@@ -274,3 +274,16 @@ cv_risk <- function(learner, eval_fun = NULL, coefs = NULL) {
   }
   return(risk_dt)
 }
+
+
+
+
+
+# loss for density ratio estimation
+loss_weighted_loglik_densratio <- function(pred, observed) {
+    out <- -log(bound(pred))
+    attributes(out)$name <- "NLL"
+    return(out)
+}
+
+

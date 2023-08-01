@@ -72,11 +72,11 @@ Lrnr_densratio_kernel <- R6Class(
             
             # add task data to the argument list
             # split the data into 2 sets, each represent a sample from one distribution
-            whole_data <- task$data
-            data_x1 <- whole_data[whole_data$indicator == 1, ]
-            data_x2 <- whole_data[whole_data$indicator == 2, ]
-            data_x1$indicator <- NULL
-            data_x2$indicator <- NULL
+            whole_data <- data.table::setDT(task$data)
+            # x1 is the numerator distribution
+            # x2 is the denominator distribution
+            data_x1 <- whole_data[indicator == 1][, indicator := NULL]
+            data_x2 <- whole_data[indicator == 2][, indicator := NULL]
             args$x1 <- as.matrix(data_x1)
             args$x2 <- as.matrix(data_x2)
             
@@ -102,9 +102,7 @@ Lrnr_densratio_kernel <- R6Class(
         
         # .predict takes a task and returns predictions from that task
         .predict = function(task) {
-            pred_data <- task$data
-            pred_data <- pred_data[pred_data$indicator == 2, ]
-            pred_data$indicator <- NULL
+            pred_data <- data.table::setDT(task$X)
             pred_data <- as.matrix(pred_data)
             predictions <- self$fit_object$compute_density_ratio(pred_data)
             return(predictions)
