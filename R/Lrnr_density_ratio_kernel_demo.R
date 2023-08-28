@@ -59,9 +59,6 @@ Lrnr_densratio_kernel <- R6Class(
         
         # .train takes task data and returns a fit object that can be used to generate predictions
         .train = function(task) {
-            # generate an argument list from the parameters that were
-            # captured when your learner was initialized.
-            # this allows users to pass arguments directly to your ml function
             args <- self$params
             
             # get outcome variable type
