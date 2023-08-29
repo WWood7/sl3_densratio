@@ -282,7 +282,8 @@ cv_risk <- function(learner, eval_fun = NULL, coefs = NULL) {
 # loss for density ratio estimation
 # the dissimilarity will be weighted sum of two KL-divergence
 loss_weighted_loglik_densratio <- function(pred, observed) {
-    out <- -log(bound(pred)) * observed
+    # transform (1, 0) into (-1, 1)
+    out <- -log(bound(pred)) * (observed - 0.5) * (-2)
     attributes(out)$name <- "WNLL"
     return(out)
 }
