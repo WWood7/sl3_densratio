@@ -39,9 +39,12 @@ Lrnr_densratio_kernel <- R6Class(
         # if possible, your learner should define defaults for all required parameters
         initialize = function(sigma = 'auto', lambda = 'auto', alpha = 0.1, 
                               kernel_num = 100, fold = 5, verbose =TRUE,
-                              method = 'KLIEP', ...) {
+                              method = 'KLIEP', stage2 = FALSE, ub = NULL, ...) {
             # this captures all parameters to initialize and saves them as self$params
             params <- args_to_list()
+            if (is.null(params$ub)){
+              params$ub <- 10
+            }
             super$initialize(params = params, ...)
         }
         
@@ -59,6 +62,13 @@ Lrnr_densratio_kernel <- R6Class(
         
         # .train takes task data and returns a fit object that can be used to generate predictions
         .train = function(task) {
+            if (self$params$stage2 == TRUE){
+              # modify the task
+              covariates_set <- task$nodes$covariates[2:length(task$nodes$covariates)]
+              task <- task$next_in_chain(
+                covariates = covariates_set
+              )
+            }
             args <- self$params
             
             # get outcome variable type
@@ -99,9 +109,26 @@ Lrnr_densratio_kernel <- R6Class(
         
         # .predict takes a task and returns predictions from that task
         .predict = function(task) {
+            # check stage
+            if (self$params$stage2 == TRUE){
+              stage1_results <- task$data$stage1_results
+              covariates_set <- task$nodes$covariates[2:length(task$nodes$covariates)]
+              task <- task$next_in_chain(
+                covariates = covariates_set
+              )
+            }
+            # get the upper bound
+            ub <- self$params$ub
+          
             pred_data <- data.table::setDT(task$X)
             pred_data <- as.matrix(pred_data)
             predictions <- self$fit_object$compute_density_ratio(pred_data)
+            # if this is the stage2 estimation    
+            if (self$params$stage2 == TRUE){
+              predictions <- stage1_results / predictions
+            }
+            # apply the upper bound
+            predictions <- pmin(predictions, ub)
             return(predictions)
         }
     )
