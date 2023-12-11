@@ -39,7 +39,7 @@ Lrnr_densratio_kernel <- R6Class(
         # if possible, your learner should define defaults for all required parameters
         initialize = function(sigma = 'auto', lambda = 'auto', alpha = 0.1, 
                               kernel_num = 100, fold = 5, verbose =TRUE,
-                              method = 'KLIEP', stage2 = FALSE, ub = NULL, ...) {
+                              method = 'KLIEP', stage2 = FALSE, ub = NULL,...) {
             # this captures all parameters to initialize and saves them as self$params
             params <- args_to_list()
             if (is.null(params$ub)){
@@ -130,6 +130,19 @@ Lrnr_densratio_kernel <- R6Class(
             # apply the upper bound
             predictions <- pmin(predictions, ub)
             return(predictions)
+        },
+        
+        .chain = function(task){
+          # the second to the last are the sets of variables we condition on
+          stage1_results <- self$predict(task)
+          stage1_results <- as.data.table(stage1_results)
+          task <- task$revere_fold_task("full")
+          new_col_names <- task$add_columns(stage1_results, self$fit_uuid)
+          covariates_set <- c(names(stage1_results), task$nodes$covariates[2:length(task$nodes$covariates)])
+          return(task$next_in_chain(
+            covariates = covariates_set,
+            column_names = new_col_names
+          ))
         }
     )
 )
