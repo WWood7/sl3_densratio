@@ -40,15 +40,12 @@ Lrnr_densratio_classification <- R6Class(
     classname = "Lrnr_densratio_classification", inherit = Lrnr_base,
     portable = TRUE, class = TRUE,
     public = list(
-        initialize = function(classifier = NULL, ub = NULL, stage2 = FALSE,...) {
+        initialize = function(classifier = NULL, stage2 = FALSE,...) {
             # this captures all parameters to initialize and saves them as self$params
             params <- args_to_list()
             
             if (is.null(params$classifier)) {
                 params$classifier <- make_learner(Lrnr_glm_fast)
-            }
-            if (is.null(params$ub)){
-                params$ub <- 10
             }
             super$initialize(params = params, ...)
         },
@@ -91,7 +88,6 @@ Lrnr_densratio_classification <- R6Class(
                 )
             }
             # get the upper bound
-            ub <- self$params$ub
           
             
             prob <- self$fit_object$predict(task)
@@ -101,7 +97,6 @@ Lrnr_densratio_classification <- R6Class(
                 predictions <- stage1_results / predictions
             }
             # apply the upper bound
-            predictions <- pmin(predictions, ub)
             return(predictions)
         },
         
