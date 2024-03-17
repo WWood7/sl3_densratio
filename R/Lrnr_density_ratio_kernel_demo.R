@@ -79,8 +79,8 @@ Lrnr_densratio_kernel <- R6Class(
             whole_data <- data.table::setDT(task$data)
             # x1 is the numerator distribution
             # x2 is the denominator distribution
-            data_x1 <- whole_data[indicator == 1][, indicator := NULL]
-            data_x2 <- whole_data[indicator == 0][, indicator := NULL]
+            data_x1 <- subset(whole_data[indicator == 1], select = names(task$X))
+            data_x2 <- subset(whole_data[indicator == 0], select = names(task$X))
             args$x1 <- as.matrix(data_x1)
             args$x2 <- as.matrix(data_x2)
             
