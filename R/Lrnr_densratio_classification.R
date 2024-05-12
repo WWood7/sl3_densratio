@@ -40,7 +40,7 @@ Lrnr_densratio_classification <- R6Class(
     classname = "Lrnr_densratio_classification", inherit = Lrnr_base,
     portable = TRUE, class = TRUE,
     public = list(
-        initialize = function(classifier = NULL, stage2 = FALSE,...) {
+        initialize = function(classifier = NULL, conditional_set = NULL,...) {
             # this captures all parameters to initialize and saves them as self$params
             params <- args_to_list()
             
@@ -61,13 +61,18 @@ Lrnr_densratio_classification <- R6Class(
         .properties = c("densratio"),
         # .train takes task data and returns a fit object that can be used to generate predictions
         .train = function(task) {
-            if (self$params$stage2 == TRUE){
-                # modify the task
-                covariates_set <- task$nodes$covariates[2:length(task$nodes$covariates)]
-                task <- task$next_in_chain(
-                    covariates = covariates_set
-                )
+          if (!is.null(self$params$conditional_set)){
+            if (!(self$params$conditional_set %in% task$nodes$covariates)) {
+              stop("Conditional set specified does not exist among the task's covariates.")
             }
+            
+            # Identify the index of the conditional set in the covariates
+            conditional_index <- which(task$nodes$covariates == self$params$conditional_set)
+            covariates_set <- task$nodes$covariates[conditional_index]
+            task <- task$next_in_chain(
+              covariates = covariates_set
+            )
+          }
             classifier <- self$params$classifier
             prob_fit <- classifier$train(task)
             fit_object <- prob_fit
@@ -80,12 +85,18 @@ Lrnr_densratio_classification <- R6Class(
         # .predict takes a task and returns predictions from that task
         .predict = function(task = NULL) {
             # check stage
-            if (self$params$stage2 == TRUE){
-                stage1_results <- task$data$stage1_results
-                covariates_set <- task$nodes$covariates[2:length(task$nodes$covariates)]
-                task <- task$next_in_chain(
-                    covariates = covariates_set
-                )
+            if (!is.null(self$params$conditional_set)){
+            stage1_results <- task$data$stage1_results
+            if (!(self$params$conditional_set %in% task$nodes$covariates)) {
+              stop("Conditional set specified does not exist among the task's covariates.")
+            }
+            
+            # Identify the index of the conditional set in the covariates
+            conditional_index <- which(task$nodes$covariates == self$params$conditional_set)
+            covariates_set <- task$nodes$covariates[conditional_index]
+            task <- task$next_in_chain(
+              covariates = covariates_set
+            )
             }
             # get the upper bound
           
@@ -93,7 +104,7 @@ Lrnr_densratio_classification <- R6Class(
             prob <- self$fit_object$predict(task)
             predictions <- prob / (1 - prob)
             # if this is the stage2 estimation    
-            if (self$params$stage2 == TRUE){
+            if (!is.null(self$params$conditional_set)){
                 predictions <- stage1_results / predictions
             }
             # apply the upper bound
@@ -107,7 +118,7 @@ Lrnr_densratio_classification <- R6Class(
             stage1_results <- as.data.table(stage1_results)
             task <- task$revere_fold_task("full")
             new_col_names <- task$add_columns(stage1_results, self$fit_uuid)
-            covariates_set <- c(names(stage1_results), task$nodes$covariates[2:length(task$nodes$covariates)])
+            covariates_set <- c(names(stage1_results), task$nodes$covariates)
             return(task$next_in_chain(
                 covariates = covariates_set,
                 column_names = new_col_names

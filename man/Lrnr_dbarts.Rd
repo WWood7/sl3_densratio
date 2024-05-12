@@ -124,6 +124,8 @@ Other Learners:
 \code{\link{Lrnr_density_discretize}},
 \code{\link{Lrnr_density_hse}},
 \code{\link{Lrnr_density_semiparametric}},
+\code{\link{Lrnr_densratio_classification}},
+\code{\link{Lrnr_densratio_kernel}},
 \code{\link{Lrnr_earth}},
 \code{\link{Lrnr_expSmooth}},
 \code{\link{Lrnr_gam}},
