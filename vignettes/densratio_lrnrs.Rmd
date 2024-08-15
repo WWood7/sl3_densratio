@@ -10,9 +10,12 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r setup, echo=FALSE, results='hide'}
+<!-- this r section is for local test, have to be modified in final version-->
+```{r setup, echo=FALSE, results='hide', message=FALSE}
 setwd("/Users/winnwu/Documents/GitHub/sl3_densratio")
 devtools::load_all()
+set.seed(49753)
+data(cpp_imputed)
 ```
 
 ## Introduction
@@ -20,8 +23,8 @@ devtools::load_all()
 Ratios of different probability density functions can be useful to estimate in some scenarios. 
 In causal inference, density ratios can be of indirect interests as some nuisance parameters 
 incorporated in estimands or estimators. In general machine learning, density ratios can be useful 
-in tackling covariates shifting. `sl3` is equipped with learners that can tackle density ratios 
-written in the form $\frac{f(X)}{g(X)}$ or $\frac{f(X\mid Y)}{g(X\mid Y)}$.
+in addressing covariates shift adaptation and outlier detection. `sl3` is equipped with learners that 
+can tackle density ratios written in the form $\frac{f(X)}{g(X)}$ or $\frac{f(X\mid Y)}{g(X\mid Y)}$.
 
 Different from situations like classification and regression, where 
 the true values of the variables of interest is included in the training data, in density ratio 
@@ -38,7 +41,9 @@ Throughout this vignette, we use data from the Collaborative Perinatal Project
 convenience, we've included an imputed version of this dataset in the `sl3`
 package. Below, we load some useful packages, and load the `cpp_imputed` dataset:
 
-```{r prelims, message = FALSE}
+
+<!-- have to be modified for final version -->
+```{r, eval=FALSE}
 set.seed(49753)
 
 # packages we'll be using
@@ -57,43 +62,80 @@ head(cpp_imputed[variables])
 ```
 
 For convenience, we use $W$ to denote `birthwt`, $L$ to denote `birthlen`, and 
-$S$ to denote `smoked`. The density ratios to be estimated here are $\frac{p(W,L\mid S=1)}{p(W,L\mid S=0)}$ 
-and $\frac{p(W\mid L, S=1)}{p(W\mid L, S=0)}$, suppose $p$ is the true PDF. The goal is, 
+$S$ to denote `smoked`. Say we want to estimate $\frac{p(W,L\mid S=1)}{p(W,L\mid S=0)}$ 
+and $\frac{p(W\mid L, S=1)}{p(W\mid L, S=0)}$, suppose $p$ is the true PDF. Given a reasonable 
+value of $(W,L)$, say $(w,l)$, our final estimates should be able to give estimated values of 
+$\frac{p(w,l\mid S=1)}{p(w,l\mid S=0)}$ and $\frac{p(w\mid l, S=1)}{p(w\mid l, S=0)}$.
 
-Here we see $S$ as an indicator of marginal distributions, i.e. $p(W,L\mid S=s)$ with different `s` 
+Here we see $S$ as an indicator of two different marginal distributions, i.e., $p(W,L\mid S=s)$ with different `s` 
 are different marginal distributions of $(W,L)$. Therefore we call density ratios with similar forms to 
 $\frac{p(W,L\mid S=1)}{p(W,L\mid S=0)}$ marginal density ratios. Density ratios with forms as $\frac{p(W\mid L, S=1)}{p(W\mid L, S=0)}$ will be termed as conditional density ratios.
 
-## Estimation of Marginal Density Distributions
+## Estimation Process
 
-We now start our estimation process. To implement any learner in `sl3`, covariates, an outcome and an 
-`sl3_Task` object are needed. In our case, the covariates are `birthwt` and `birthlen`, the tricky part 
-is that we set `smoked` as our outcome.
+### Definint the Task
+
+We now start our estimation process. To implement any learner in `sl3`, we need an `sl3_Task` object 
+in which covariates and an outcome is assigned. In our case, the covariates are `birthwt` and `birthlen`, 
+the tricky part is that we set `smoked` as the outcome. 
+
+The point here is, the variable we select as outcome is an indicator that indicates the source distributions 
+of the observed covariates. In a `sl3_Task` object for density ratio estimation, 
+the outcome variable should always be a 0-1 variable. Value 1 indicates the numerator distribution and value 0 
+indicates the denominator distribution. In our case, the variable `smoked` is just a perfect indicator against our needs. 
+However, in practice, one may need to merge or subset datasets and manually create a 0-1 variable as the indicator.
 
 
-## `sl3` objects
-
-### Tasks
-
-The `sl3_Task` class defines machine learning problems. An `sl3_Task` object
-keeps track of the task data, as well as what variables play what roles in the
-machine learning problem. We can see an example of that here, using the `cpp`
-dataset described above:
-
-```{r sl3-task-create}
-task <- make_sl3_Task(data = cpp_imputed, covariates = covars,
-                      outcome = outcome, outcome_type="continuous")
+```{r}
+# define the task object
+task <- sl3_Task$new(data = cpp_imputed, 
+                     covariates = c('birthwt', 'birthlen'), 
+                     outcome = 'smoked')
 ```
 
-We use the `make_sl3_Task` method to create a new `sl3_Task`, called `task`.
-Here, we specified the underlying data, `cpp_imputed`, and vectors indicating
-which varaibles to use as covariates and outcomes.
+### Learners for Marginal Density Ratio
 
-Let's take a look at this object:
+`sl3` has two types of learners that can handle density ratios, the kernel-based ones and the classification-based ones, see[ref].  
+Kernel-based learners can be defined with three different values of a `method` argument, corresponding to three different kernel 
+methods, see [ref].
 
-```{r sl3-task-examine}
-task
+```{r}
+# define a kernel-based learner
+klrnr <- Lrnr_densratio_kernel$new(method = 'RuLSIF', kernel_num = 200, alpha = 0.5)
 ```
+
+Similarly, to build classification-based learners, we need to determine the classification algorithms we want to use. There is a 
+`classifier` argument for assigning a defined `sl3` classification learner to our classification-based density ratio learner.
+
+```{r}
+#define a classification-based learner
+clrnr <- Lrnr_densratio_classification$new(classifier = make_learner(Lrnr_gam))
+```
+
+Now we use the classification-based learner to run the estimation. The process with a kernel-based learner should 
+be no different. However, since the kernel methods use squared Euclidean distance among data points to do the estimation, 
+it is highly recommended to standardize the data first if one aims to use kernel-based learners.
+
+```{r}
+# fit learners to task data
+clrnr_fit <- clrnr$train(task)
+
+# get predictions
+clrnr_preds <- clrnr_fit$predict(task)
+head(clrnr_preds)
+```
+
+Our learner is able to generate predictions.
+
+### Estimating Conditional Density Ratios
+
+The conditional density ratio can be written as the ratio of two marginal density ratios: $\frac{p(W\mid L, S=1)}{p(W\mid L, S=0)}=\frac{p(W,L\mid S=1)}{p(W,L\mid S=0)}\Big/\frac{p(L\mid S=1)}{p(L\mid S=0)}$. That is how `sl3` can tackle the conditional density ratio, by conducting two marginal density 
+ratios. To do this, we need to compose two density ratio learners using `Pipeline`.
+
+```{r}
+
+```
+
 
 In addition to the simple usage demonstrated above, `make_sl3_Task` supports a
 range of options in order to facilitate the proper articulation of more advanced
