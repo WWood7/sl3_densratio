@@ -193,7 +193,7 @@ sl_fit_preds <- sl_fit$predict(task)
 head(sl_fit_preds)
 ```
 
-Our super learner is able to give predictions. 
+
 ---
 
 ## Session Information
