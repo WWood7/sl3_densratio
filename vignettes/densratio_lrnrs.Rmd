@@ -11,7 +11,7 @@ vignette: >
 ---
 
 <!-- this r section is for local test, have to be modified in final version-->
-```{r setup, echo=FALSE, results='hide', message=FALSE}
+```{r setup, echo=FALSE, results='hide', message=FALSE, warning=FALSE}
 setwd("/Users/winnwu/Documents/GitHub/sl3_densratio")
 devtools::load_all()
 set.seed(49753)
@@ -29,12 +29,9 @@ can tackle density ratios written in the form $\frac{f(X)}{g(X)}$ or $\frac{f(X\
 Different from situations like classification and regression, where 
 the true values of the variables of interest is included in the training data, in density ratio 
 estimation we cannot observe the actual density ratios. Thus, `sl3` handles density ratio 
-estimation differently. This guide describes the process of implementing density ratio learners in `sl3`
-to estimate density ratios. 
+estimation differently. This guide describes the process of implementing density ratio learners in `sl3`. 
 
 ### Example Data
-
-<!-- use `smoked` as the binary variable -->
 
 Throughout this vignette, we use data from the Collaborative Perinatal Project
 (CPP) to illustrate the features of `sl3` density ratio learners. For
@@ -64,8 +61,8 @@ head(cpp_imputed[variables])
 For convenience, we use $W$ to denote `birthwt`, $L$ to denote `birthlen`, and 
 $S$ to denote `smoked`. Say we want to estimate $\frac{p(W,L\mid S=1)}{p(W,L\mid S=0)}$ 
 and $\frac{p(W\mid L, S=1)}{p(W\mid L, S=0)}$, suppose $p$ is the true PDF. Given a reasonable 
-value of $(W,L)$, say $(w,l)$, our final estimates should be able to give estimated values of 
-$\frac{p(w,l\mid S=1)}{p(w,l\mid S=0)}$ and $\frac{p(w\mid l, S=1)}{p(w\mid l, S=0)}$.
+value of $(W,L)$, say $(w,l)$, our fit learners should be able to give estimated values of 
+$\frac{p(w,l\mid S=1)}{p(w,l\mid S=0)}$ or $\frac{p(w\mid l, S=1)}{p(w\mid l, S=0)}$.
 
 Here we see $S$ as an indicator of two different marginal distributions, i.e., $p(W,L\mid S=s)$ with different `s` 
 are different marginal distributions of $(W,L)$. Therefore we call density ratios with similar forms to 
@@ -76,8 +73,8 @@ $\frac{p(W,L\mid S=1)}{p(W,L\mid S=0)}$ marginal density ratios. Density ratios 
 ### Definint the Task
 
 We now start our estimation process. To implement any learner in `sl3`, we need an `sl3_Task` object 
-in which covariates and an outcome is assigned. In our case, the covariates are `birthwt` and `birthlen`, 
-the tricky part is that we set `smoked` as the outcome. 
+in which covariates and an outcome is assigned. In our case, the covariates are `birthwt` and `birthlen`. 
+The tricky part is that we set `smoked` as the outcome. 
 
 The point here is, the variable we select as outcome is an indicator that indicates the source distributions 
 of the observed covariates. In a `sl3_Task` object for density ratio estimation, 
@@ -95,21 +92,21 @@ task <- sl3_Task$new(data = cpp_imputed,
 
 ### Learners for Marginal Density Ratio
 
-`sl3` has two types of learners that can handle density ratios, the kernel-based ones and the classification-based ones, see[ref].  
+`sl3` has two types of learners that can handle density ratios, the kernel-based ones and the classification-based ones, see [@wu_density_2024].  
 Kernel-based learners can be defined with three different values of a `method` argument, corresponding to three different kernel 
-methods, see [ref].
+methods, see [@sugiyama_direct_2007] and [@kanamori_least-squares_2009].
 
 ```{r}
 # define a kernel-based learner
-klrnr <- Lrnr_densratio_kernel$new(method = 'RuLSIF', kernel_num = 200, alpha = 0.5)
+klrnr <- Lrnr_densratio_kernel$new(method = 'RuLSIF', kernel_num = 200, alpha = 0.2)
 ```
 
-Similarly, to build classification-based learners, we need to determine the classification algorithms we want to use. There is a 
+Similarly, in creating classification-based learners, we can determine the classification algorithms we want to use. There is a 
 `classifier` argument for assigning a defined `sl3` classification learner to our classification-based density ratio learner.
 
 ```{r}
 # define a classification learner
-clr <- Lrnr_gam$new()
+clr <- Lrnr_glm$new()
 
 #define a classification-based density ratio learner
 clrnr <- Lrnr_densratio_classification$new(classifier = clr)
@@ -132,8 +129,8 @@ Our learner is able to generate predictions.
 
 ### Estimating Conditional Density Ratios
 
-The conditional density ratio can be written as the ratio of two marginal density ratios: $\frac{p(W\mid L, S=1)}{p(W\mid L, S=0)}=\frac{p(W,L\mid S=1)}{p(W,L\mid S=0)}\Big/\frac{p(L\mid S=1)}{p(L\mid S=0)}$. That is how `sl3` can tackle the conditional density ratio, by conducting two separate marginal density 
-ratio estimation. To do this, we need to compose two density ratio learners using `Pipeline`. The first learner will be dealing with $\frac{p(W,L\mid S=1)}{p(W,L\mid S=0)}$ and the second learner will be dealing with $\frac{p(L\mid S=1)}{p(L\mid S=0)}$. Here we use the `clrnr` as our first stage learner, 
+The conditional density ratio can be written as the ratio of two marginal density ratios: $\frac{p(W\mid L, S=1)}{p(W\mid L, S=0)}=\frac{p(W,L\mid S=1)}{p(W,L\mid S=0)}\Big/\frac{p(L\mid S=1)}{p(L\mid S=0)}$. This is how `sl3` can tackle the conditional density ratio, by conducting two separate marginal density 
+ratio estimation. To do this, we need to compose two density ratio learners using `Pipeline`. The first learner will be dealing with $\frac{p(W,L\mid S=1)}{p(W,L\mid S=0)}$ and the second learner with $\frac{p(L\mid S=1)}{p(L\mid S=0)}$. Here we use the `clrnr` as our first stage learner, 
 and define the second stage learner inside `Pipeline`. To be noticed here, the second learner needs to be assigned the conditional set of our final 
 conditional density ratio.
 
@@ -162,8 +159,41 @@ Our learner is able to give predictions.
 
 The loss function is an essential part for building super learners, based on the parameters of interest, 
 the required loss function can be different. In `sl3`, we have a loss function tailored specifically 
-for density ratio estimation [ref].
+for density ratio estimation [wu_density_2024]. To use this loss function, one has to assign `loss_weighted_loglik_densratio` to 
+the `eval_function` argument in the `metalearner` of an `Lrnr_sl` object.
 
+
+We give an example of estimating $\frac{p(W,L\mid S=1)}{p(W,L\mid S=0)}$ here. Building super learners in estimating 
+conditional density ratio follows the same process.
+
+```{r}
+# create some density ratio learners
+clrnr1 <- Lrnr_densratio_classification$new(classifier = make_learner(
+  Lrnr_glm
+))
+clrnr2 <- Lrnr_densratio_classification$new(classifier = make_learner(
+  Lrnr_gam
+))
+
+# stack the two learners
+stack <- Stack$new(clrnr1, clrnr2)
+
+# build a super learner with the qualified loss function
+sl <- Lrnr_sl$new(stack, metalearner = Lrnr_solnp$new(
+    eval_function = loss_weighted_loglik_densratio ))
+```
+
+Now we run the estimation.
+```{r}
+# fit the super learner
+sl_fit <- sl$train(task)
+
+# get predictions
+sl_fit_preds <- sl_fit$predict(task)
+head(sl_fit_preds)
+```
+
+Our super learner is able to give predictions. 
 ---
 
 ## Session Information
