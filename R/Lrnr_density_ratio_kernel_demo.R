@@ -175,8 +175,8 @@ Lrnr_densratio_kernel <- R6Class(
             return(predictions)
         },
         
+        # set the chain function for two-stage estimation
         .chain = function(task){
-          # the second to the last are the sets of variables we condition on
           stage1_results <- self$predict(task)
           stage1_results <- as.data.table(stage1_results)
           task <- task$revere_fold_task("full")
