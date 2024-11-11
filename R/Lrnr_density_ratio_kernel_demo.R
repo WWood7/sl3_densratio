@@ -98,13 +98,12 @@ Lrnr_densratio_kernel <- R6Class(
         # .train takes task data and returns a fit object that can be used to generate predictions
         .train = function(task) {
             if (!is.null(self$params$conditional_set)){
-              if (!(self$params$conditional_set %in% task$nodes$covariates)) {
+              if (!all(self$params$conditional_set %in% task$nodes$covariates)) {
                 stop("Conditional set specified does not exist among the task's covariates.")
               }
               
               # Identify the index of the conditional set in the covariates
-              conditional_index <- which(task$nodes$covariates == self$params$conditional_set)
-              covariates_set <- task$nodes$covariates[conditional_index]
+              covariates_set <- self$params$conditional_set
               task <- task$next_in_chain(
                 covariates = covariates_set
               )
@@ -151,14 +150,17 @@ Lrnr_densratio_kernel <- R6Class(
         .predict = function(task) {
             # check stage
             if (!is.null(self$params$conditional_set)){
-              stage1_results <- task$data$stage1_results
-              if (!(self$params$conditional_set %in% task$nodes$covariates)) {
+              if (!all(self$params$conditional_set %in% task$nodes$covariates)) {
                 stop("Conditional set specified does not exist among the task's covariates.")
               }
               
-              # Identify the index of the conditional set in the covariates
-              conditional_index <- which(task$nodes$covariates == self$params$conditional_set)
-              covariates_set <- task$nodes$covariates[conditional_index]
+              covariates_set <- self$params$conditional_set
+              # extract stage1_results
+              if ("stage1_results" %in% names(task$data)) {
+                stage1_results <- task$data$stage1_results
+              } else {
+                stop("stage1_results not found in task data.")
+              }
               task <- task$next_in_chain(
                 covariates = covariates_set
               )
